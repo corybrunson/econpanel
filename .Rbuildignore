@@ -1,0 +1,5 @@
+## Files to ignore when building the R package
+
+# data-generation
+^data-raw$
+

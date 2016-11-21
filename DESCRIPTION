@@ -1,0 +1,30 @@
+Package: econpanel
+Type: Package
+Title: IGM Economic Experts Panel survey data
+Version: 0.1
+Date: 2016-04-26
+Authors@R: person('Jason Cory', 'Brunson', email = 'jabrunso@vt.edu',
+    role = c('aut', 'cre'))
+Maintainer: Jason Cory Brunson <jabrunso@vt.edu>
+Description: This is an R package for updating and formatting survey data from
+    the Initiative on Global Markets Economic Experts Panel, collected and
+    maintained by the Booth School of Business at the University of Chicago,
+    and from the similar Centre for Macroeconomics survey.
+    It contains no functions, just the single dataset scraped and cleaned from
+    websites. The vignette illustrates some ways to visualize the data.
+Depends:
+    R (>= 3.0.1)
+Imports:
+Suggests:
+    rvest,
+    devtools,
+    reshape2,
+    dplyr,
+    ggtern,
+    likert,
+    ggbiplot,
+    knitr,
+    rmarkdown
+License: GPL-2
+VignetteBuilder: knitr
+RoxygenNote: 5.0.1

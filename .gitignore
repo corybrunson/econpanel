@@ -1,0 +1,9 @@
+## Files for git to ignore
+
+# R history
+.Rhistory
+
+# produced vignettes
+vignettes/*.html
+vignettes/*.pdf
+

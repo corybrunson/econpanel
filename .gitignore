@@ -2,6 +2,7 @@
 
 # R history
 .Rhistory
+.DS_Store
 
 # produced vignettes
 vignettes/*.html

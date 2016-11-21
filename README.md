@@ -4,7 +4,7 @@
 
 This is an R package for updating and formatting survey data from the [Initiative on Global Markets Economic Experts Panel] [igm], collected and maintained by the Booth School of Business at the University of Chicago; and from the [Centre for Macroeconomics] [cfm].
 
-I will update the dataset included with the package as frequently as possible (as new survey responses are posted). The code used to scrape the website is not exported (i.e. it is not visible by executing the function name in an R session) as a way of discouraging unnecessary scraping.
+I will update the dataset semesterly (but feel free to poke me if i seem to have forgotten!). The code used to scrape the website is not exported (i.e. it is not visible by executing the function name in an R session) as a way of discouraging unnecessary scraping.
 
 [igm]: http://www.igmchicago.org/igm-economic-experts-panel
 [cfm]: http://cfmsurvey.org/

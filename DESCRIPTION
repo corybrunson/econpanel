@@ -1,6 +1,6 @@
 Package: econpanel
 Type: Package
-Title: IGM Economic Experts Panel survey data
+Title: Economic experts panel survey data
 Version: 0.1
 Date: 2016-04-26
 Authors@R: person('Jason Cory', 'Brunson', email = 'jabrunso@vt.edu',

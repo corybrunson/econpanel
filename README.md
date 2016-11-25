@@ -8,8 +8,7 @@ Install the package as follows:
 
 ```r
 if (!require(devtools)) install.packages("devtools")
-library(devtools)
-install_github("corybrunson/econpanel")
+devtools::install_github("corybrunson/econpanel", build_vignettes = TRUE)
 ```
 
 I will update the dataset semesterly (but feel free to poke me if i seem to have forgotten!). The code used to scrape the website is not exported (i.e. it is not visible by executing the function name in an R session) as a way of discouraging unnecessary scraping.

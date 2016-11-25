@@ -34,9 +34,11 @@ library(econpanel)
 data(planetmoney)
 ```
 
-The vignette[^1] illustrates several ways to explore the data.
+The vignette "exploration" illustrates some questions and answers pursuable through these datasets. Access it like this:
 
-[^1]: I'm having some trouble on my own machines building the vignettes when i install the package. Sorry about that. Feel free to point out where my problem might be.
+```r
+vignette(topic = "exploration", package = "econpanel")
+```
 
 ## Acknowledgments
 

@@ -23,9 +23,6 @@ knitr::opts_chunk$set(collapse=TRUE,
 library(econpanel)
 library(dplyr)
 library(ggtern)
-#library(ggrepel) # ggrepel is not yet permitted in ggtern
-library(likert)
-library(ggbiplot)
 ```
 
 ## Planet Money's campaign season survey
@@ -41,17 +38,19 @@ The economics communication team at [Planet Money](http://www.npr.org/sections/m
 knitr::kable(planetmoney %>% select(-Brief) %>% distinct)
 ```
 
-The opinions are far from uniform, and it's not obvious how to gauge how "far" those on one proposal are from those on another. One way to line up the survey questions according to their responses is a Likert plot, produced here using [the likert package by Jason Bryer](http://jason.bryer.org/likert/):
+The opinions are far from uniform, and it's not obvious how to gauge how "far" those on one proposal are from those on another. One way to line up the survey questions according to their responses is a Likert plot, produced here using [the likert package by Jason Bryer](http://jason.bryer.org/likert/) (*warning: the likert and ggtern packages both depend on ggplot2 and do not play well together*):
 
 ```{r Likert plot of Planet Money votes, fig.height=4}
 n <- unique(rowSums(planetmoney[, c("Bad", "Debatable", "Good")]))
 stopifnot(length(n) == 1)
 planetmoney_likert <-
-  likert(summary = planetmoney[, c("Brief", "Bad", "Debatable", "Good")] %>%
-           transmute(Item = Brief,
-                     Bad = Bad * 100 / n,
-                     Debatable = Debatable * 100 / n,
-                     Good = Good * 100 / n))
+  likert::likert(
+    summary = planetmoney[, c("Brief", "Bad", "Debatable", "Good")] %>%
+      transmute(Item = Brief,
+                Bad = Bad * 100 / n,
+                Debatable = Debatable * 100 / n,
+                Good = Good * 100 / n)
+  )
 plot(planetmoney_likert)
 ```
 
@@ -113,7 +112,7 @@ levs <- c("Strongly Disagree", "Disagree",
 for (j in 1:ncol(igm_matrix))
   igm_matrix[[j]] <- factor(igm_matrix[[j]], levels = levs)
 # Likertify
-igm_likert <- likert(as.data.frame(igm_matrix))
+igm_likert <- likert::likert(as.data.frame(igm_matrix))
 plot(igm_likert)
 ```
 
@@ -145,8 +144,8 @@ The `vote_numbers` part assigns numerical values to the votes; purely by persona
 ```{r principal components biplot of IGM panelists, fig.height=7}
 # construct a PCA biplot
 stack_names <- gsub("^([^,]*), ([A-Z])[^,]*$", "\\2. \\1", rownames(igm_pca$x))
-ggbiplot(igm_pca, obs.scale = 1, var.scale = 1,
-         labels = stack_names, labels.size = 4, alpha = 1) +
+ggbiplot::ggbiplot(igm_pca, obs.scale = 1, var.scale = 1,
+                   labels = stack_names, labels.size = 4, alpha = 1) +
   theme_bw()
 ```
 

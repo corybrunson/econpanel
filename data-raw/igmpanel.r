@@ -1,3 +1,5 @@
+rm(list = ls())
+
 if (grepl("/data-raw$", getwd())) setwd("..")
 stopifnot(grepl("econpanel$", getwd()))
 
@@ -7,19 +9,26 @@ library(rvest)
 
 # Expand a survey page ID to its URL
 survey_url <- function(id) {
-  paste0("http://www.igmchicago.org/igm-economic-experts-panel",
-         "/poll-results?SurveyID=SV_", id)
+  paste0("http://www.igmchicago.org/surveys/", id)
 }
 
 # Restrict a survey page URL to its ID
 survey_id <- function(url) {
-  gsub("^.*SV_([A-Za-z0-9]{15}$)", "\\1", url)
+  gsub("^http://www.igmchicago.org/surveys/", "", url)
 }
 
 # Scrape the home page for survey page URLs
-get_surveys <- function() {
+get_surveys <- function(panel = "USA") {
   
-  page <- read_html("http://www.igmchicago.org/igm-economic-experts-panel")
+  # get corresponding URL
+  panel <- match.arg(tolower(panel), c("usa", "europe"))
+  url <- c(
+    usa = "http://www.igmchicago.org/igm-economic-experts-panel",
+    europe = "http://www.igmchicago.org/european-economic-experts-panel"
+  )[panel] %>% unname()
+  
+  # get surveys from URL
+  page <- read_html(url)
   
   # SelectorGadget
   elts <- html_nodes(page, "h2 a")
@@ -27,34 +36,12 @@ get_surveys <- function() {
   
   data.frame(
     topic = elts %>% html_text(),
-    id = survey_id(elts %>% html_attr("href")),
-    date = as.Date(gsub(
-      "^[A-Z][a-z]+, ([A-Z].*[0-9]) [0-9]{1,2}\\:[0-9]{2}(a|p)m$", "\\1",
-      dates %>% html_text()
-    ), format = "%B %d, %Y")
-  )
-}
-
-# Scrape a survey page for panelist responses
-get_responses_old <- function(url) {
-  
-  page <- read_html(url)
-  
-  # SelectorGadget
-  panelist <- html_nodes(page, ".response-name a")
-  uni <- html_nodes(page, ".parent-row td:nth-child(2)")
-  vote <- html_nodes(page, "#sort0 span")
-  conf <- html_nodes(page, ".confCell")
-  comm <- html_nodes(page, ".gridComment")
-  
-  data.frame(
-    panelist = paste(gsub("^(.*) ([^ ]+)$", "\\2, \\1",
-                          gsub("(\\n|\\t)", "",
-                               panelist %>% html_text()))),
-    uni = uni %>% html_text(),
-    vote = gsub("(\\n|\\t)", "", vote %>% html_text()),
-    confidence = as.numeric(conf %>% html_text()),
-    comment = gsub("(\\n|\\t)", "", comm %>% html_text())
+    id = elts %>% html_attr("href") %>% survey_id(),
+    date = dates %>% html_text() %>%
+      gsub(pattern = "^[A-Za-z]+, ([A-Z].*[0-9]) [0-9]{1,2}\\:.*$",
+           replacement = "\\1") %>%
+      gsub(pattern = " ([0-9]+)[a-z]{2},", replacement = " \\1,") %>%
+      as.Date(format = "%B %d, %Y")
   )
 }
 
@@ -116,23 +103,31 @@ get_responses <- function(url) {
   dats <- lapply(0:(length(ques) - 1), function(r) {
     
     # Collect and clean fields
-    panelist <- html_nodes(page, paste0("#sort", r, " .response-name"))
-    panelist <- name_alph(gsub("(\\n|\\t)", "",
-                               panelist %>% html_text()))
-    uni <- html_nodes(page,
-                      paste0("#sort", r, " .parent-row td:nth-child(2)"))
-    uni <- uni %>% html_text()
-    edit <- html_nodes(page,
-                       paste0("#sort", r,
-                              " .tablesorter-childRow td:nth-child(1)"))
-    edit <- edit %>% html_text()
-    vote <- html_nodes(page, paste0("#sort", r, " span"))
-    vote <- gsub("(\\n|\\t)", "", vote %>% html_text())
-    conf <- html_nodes(page, paste0("#sort", r, " .confCell"))
-    conf <- as.numeric(conf %>% html_text())
-    comm <- html_nodes(page, paste0("#sort", r, " .gridComment"))
-    comm <- gsub("(\\n|\\t)", "", comm %>% html_text())
-    
+    panelist <- page %>%
+      html_nodes(paste0("#sort", r, " .response-name")) %>%
+      html_text() %>%
+      gsub(pattern = "(\\n|\\t)", replacement = "") %>%
+      name_alph
+    uni <- page %>%
+      html_nodes(paste0("#sort", r, " .parent-row td:nth-child(2)")) %>%
+      html_text()
+    edit <- page %>%
+      html_nodes(paste0("#sort", r,
+                        " .tablesorter-childRow td:nth-child(1)")) %>%
+      html_text()
+    vote <- page %>%
+      html_nodes(paste0("#sort", r, " span")) %>%
+      html_text() %>%
+      gsub(pattern = "(\\n|\\t)", replacement = "")
+    conf <- page %>%
+      html_nodes(paste0("#sort", r, " .confCell")) %>%
+      html_text() %>%
+      as.numeric()
+    comm <- page %>%
+      html_nodes(paste0("#sort", r, " .gridComment")) %>%
+      html_text() %>%
+      gsub(pattern = "(\\n|\\t)", replacement = "")
+
     # Shift cells back when late joiners are added
     late <- grep("^Joined", edit)
     if(length(late) > 0) {
@@ -167,8 +162,8 @@ get_responses <- function(url) {
   })
   
   # Check that no more responses remain
-  panelist <- html_nodes(page,
-                         paste0("#sort", length(ques), " .response-name a"))
+  panelist <- page %>%
+    html_nodes(paste0("#sort", length(ques), " .response-name a"))
   if(length(panelist) > 0)
     stop("Conflicting question and response counts")
   
@@ -222,7 +217,7 @@ get_data <- function(surveys, ...) {
   update_data(data, surveys, prompt = FALSE, ...)
 }
 
-# Script
+# Script for USA panel
 
 #data_file <- "data/igm.rds"
 #if (file.exists(data_file)) igm <- readRDS(data_file)
@@ -245,4 +240,25 @@ igm <- dplyr::arrange(igm, date, question, panelist)
 #saveRDS(igm, data_file)
 devtools::use_data(igm, overwrite = TRUE)
 
-rm(list = ls())
+# Script for Europe panel
+
+#data_file <- "data/eigm.rds"
+#if (file.exists(data_file)) igm <- readRDS(data_file)
+if (file.exists("data/eigm.rda")) load("data/eigm.rda")
+
+# get surveys
+surveys <- get_surveys(panel = "Europe")
+
+if (!exists("eigm")) {
+  # scrape fresh
+  eigm <- get_data(surveys)
+} else {
+  # scrape for updates
+  eigm <- update_data(eigm, surveys)
+}
+
+# sort by date > question > panelist
+eigm <- dplyr::arrange(eigm, date, question, panelist)
+
+#saveRDS(eigm, data_file)
+devtools::use_data(eigm, overwrite = TRUE)

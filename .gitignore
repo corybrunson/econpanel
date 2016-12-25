@@ -8,3 +8,6 @@
 vignettes/*.html
 vignettes/*.pdf
 
+# stuff to manually ignore
+*-old.*
+

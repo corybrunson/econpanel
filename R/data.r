@@ -9,6 +9,16 @@
 #' @name igm
 NULL
 
+#' Initiative on Global Markets European expert panel survey results
+#' 
+#' European counterpart to \code{\link{igm}}
+#' 
+#' @format Data frame.
+#' @source IGM Forum
+#'   \url{http://www.igmchicago.org/european-economic-experts-panel}
+#' @name eigm
+NULL
+
 #' Centre for Macroeconomics expert panel survey results
 #' 
 #' Likert votes by 58 economists on several years' worth of policy surveys 

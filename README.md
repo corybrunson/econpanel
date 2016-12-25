@@ -20,10 +20,12 @@ I will update the dataset semesterly (but feel free to poke me if i seem to have
 
 The package contains three datasets, stored as `data.frame`s:
 
-* `igm` contains question statements and responses from the [Initiative on Global Markets] [igm].
+* `igm` contains question statements and responses from the [Initiative on Global Markets panel] [igm].
+* `eigm` contains the corresponding data from the [IGM European panel] [eigm].
 * `cfm` contains question statements and responses from the [Centre for Macroeconomics] [cfm].
 * `planetmoney` contains question statements and response tallies (not individual responses) from [a 2016 story by Planet Money] [planetmoney] on economists' opinions about the U.S. presidential candidates' economic proposals. The panelists were drawn from the IGM pool.
 
+[eigm]: http://www.igmchicago.org/european-economic-experts-panel
 [planetmoney]: http://www.npr.org/sections/money/2016/02/26/468298576/economists-on-candidates-proposals-mostly-bad
 
 To load one of the datasets, use the `data()` function:

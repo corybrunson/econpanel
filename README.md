@@ -31,8 +31,7 @@ The package contains three datasets, stored as `data.frame`s:
 To load one of the datasets, use the `data()` function:
 
 ```r
-library(econpanel)
-data(planetmoney)
+data(planetmoney, package = "econpanel")
 ```
 
 The vignette "exploration" illustrates some questions and answers pursuable through these datasets. Access it like this:

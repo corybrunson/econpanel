@@ -35,10 +35,10 @@ get_surveys <- function(chill = TRUE) {
   # SelectorGadget
   topics <- unlist(lapply(lapply(pages, html_nodes, css = "h2 a"), html_text))
   ids <- unlist(lapply(lapply(pages, html_nodes, css = "h2 a"),
-                          html_attr, name = "href"))
+                       html_attr, name = "href"))
   dates <- unlist(lapply(lapply(pages, html_nodes, css = "p span"),
                          html_attr, name = "content"))
-
+  
   data.frame(
     topic = gsub("[ |\t|\n|\r]+", " ", topics),
     id = gsub("^/surveys/", "", ids),

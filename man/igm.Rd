@@ -12,4 +12,3 @@ Likert votes by 50 economists on several years' worth of policy surveys
 conducted by the Initiative on Global Markets at the University of Chicago's 
 Booth School of Business
 }
-

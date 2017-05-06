@@ -1,3 +1,4 @@
+rm(list = ls())
 if (grepl("/data-raw$", getwd())) setwd("..")
 stopifnot(grepl("econpanel$", getwd()))
 
@@ -210,5 +211,3 @@ if (!exists("cfm")) {
 cfm <- dplyr::arrange(cfm, date, question, participant)
 
 devtools::use_data(cfm, overwrite = TRUE)
-
-rm(list = ls())

@@ -1,5 +1,4 @@
 rm(list = ls())
-
 if (grepl("/data-raw$", getwd())) setwd("..")
 stopifnot(grepl("econpanel$", getwd()))
 
@@ -219,8 +218,6 @@ get_data <- function(surveys, ...) {
 
 # Script for USA panel
 
-#data_file <- "data/igm.rds"
-#if (file.exists(data_file)) igm <- readRDS(data_file)
 if (file.exists("data/igm.rda")) load("data/igm.rda")
 
 # get surveys
@@ -237,13 +234,10 @@ if (!exists("igm")) {
 # sort by date > question > panelist
 igm <- dplyr::arrange(igm, date, question, panelist)
 
-#saveRDS(igm, data_file)
 devtools::use_data(igm, overwrite = TRUE)
 
 # Script for Europe panel
 
-#data_file <- "data/eigm.rds"
-#if (file.exists(data_file)) igm <- readRDS(data_file)
 if (file.exists("data/eigm.rda")) load("data/eigm.rda")
 
 # get surveys
@@ -260,5 +254,4 @@ if (!exists("eigm")) {
 # sort by date > question > panelist
 eigm <- dplyr::arrange(eigm, date, question, panelist)
 
-#saveRDS(eigm, data_file)
 devtools::use_data(eigm, overwrite = TRUE)

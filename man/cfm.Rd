@@ -11,4 +11,3 @@ The CFM Surveys \url{http://cfmsurvey.org/}
 Likert votes by 58 economists on several years' worth of policy surveys 
 conducted by the Centre for Macroeconomics
 }
-

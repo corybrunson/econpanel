@@ -14,4 +14,3 @@ Frequency dataset of likert votes by 22 economists of several candidates'
 policy proposals in a survey conducted by NPR's Planet Money team during the 
 2015-6 presidential primary season
 }
-

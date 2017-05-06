@@ -11,4 +11,3 @@ IGM Forum
 \description{
 European counterpart to \code{\link{igm}}
 }
-

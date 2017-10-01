@@ -1,0 +1,183 @@
+---
+title: "Exploring the space of economic opinion"
+author: "Jason Cory Brunson"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{The space of economic opinion}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+This vignette uses some basic data manipulation and visualization tools to explore the range of opinion among professional economists, as tapped into by regular panel surveys.
+
+## Background
+
+Each semester, the [Initiative on Global Markets](http://www.igmchicago.org/) surveys their expert panel on a question or two (or three) relevant to a topic getting attention in wonky discussions or even in the public discourse. The 50 (so far) panelists are academic economists at 7 elite universities. They answer the questions on a 5-point Likert scale, also indicating their confidence level, or else they abstain. The website summarizes their answers in bar charts, one raw and the other weighted by confidence. That's great for summarizing the range of professional views on each question, but it doesn't tell us anything about how the questions compare with each other, or how their answers indicate differences in their views.
+
+IGM doesn't make the dataset conveniently available online or by request, but, by the magic of [rvest](https://blog.rstudio.org/2014/11/24/rvest-easy-web-scraping-with-r/) and [SelectorGadget](http://selectorgadget.com/) (and the precedent provided by Chris Said's [Which Famous Economist](http://whichfamouseconomistareyoumostsimilarto.com/)), a slightly convoluted script can scrape the data from every survey (in the case of revisited answers, keeping only the latter) and format it as a data frame in R. This package is a vehicle for that dataset, which i'll make a point to update each semester.
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(collapse=TRUE,
+                      fig.width=9, out.width='90%', fig.align='center')
+library(econpanel)
+library(dplyr)
+library(ggtern)
+```
+
+## Planet Money's campaign season survey
+
+```{r Planet Money data}
+data(planetmoney)
+```
+
+The economics communication team at [Planet Money](http://www.npr.org/sections/money/2016/02/26/468298576/economists-on-candidates-proposals-mostly-bad) conducted a one-off survey similar to the IGM, which will serve as an illustrative example. The team summarized `r length(unique(planetmoney$Proposal))` policy proposals put forth by a spectrum of presidential candidates and had a panel of `r unique(rowSums(planetmoney[, 4:6]))` economists rank them as "good", "bad", or "debatable".
+
+```{r table of Planet Money votes}
+# piping "%>%" implemented in magrittr, imported in dplyr
+knitr::kable(planetmoney %>% select(-Brief) %>% distinct)
+```
+
+The opinions are far from uniform, and it's not obvious how to gauge how "far" those on one proposal are from those on another. One way to line up the survey questions according to their responses is a Likert plot, produced here using [the likert package by Jason Bryer](http://jason.bryer.org/likert/) (*warning: the likert and ggtern packages both depend on ggplot2 and do not play well together*):
+
+```{r Likert plot of Planet Money votes, fig.height=4}
+n <- unique(rowSums(planetmoney[, c("Bad", "Debatable", "Good")]))
+stopifnot(length(n) == 1)
+planetmoney_likert <-
+  likert::likert(
+    summary = planetmoney[, c("Brief", "Bad", "Debatable", "Good")] %>%
+      transmute(Item = Brief,
+                Bad = Bad * 100 / n,
+                Debatable = Debatable * 100 / n,
+                Good = Good * 100 / n)
+  )
+plot(planetmoney_likert)
+```
+
+It's clear from this view that the panelists disliked more of the candidates' proposals than they liked, and also that greater consensus among the panelists who described proposals as "good" or "bad" was associated with a lower number who found them "debatable". While the plot ranks the proposals from best to worst (according to the panelists), this single dimension doesn't capture the full variety of how the panelists' opinions can spread. For example, the level of positive versus negative opinion on Sanders' proposal for a spectator tax on stock trading is about the same as that on Trump's proposal to exempt low-earners from the income tax; Trump's proposal was seen as debatable by substantially more panelists than Sanders'.
+
+To better map out the opinion space, i'm fond of using a ternary plot. The idea is to first plot for each proposal a point $(x,y,z)$ in 3-dimensional space, according to the number of good ($x$), bad ($y$), and debatable ($z$) opinions it got. Every point then falls on the plane $x+y+z=n$, where $n$ is the number of panelists. Since every point also has non-negative coordinates, they are all located in the triangle of this plane confined to the first octant ($x,y,z>0$). A ternary plot simply plops this triangle into a plotting window. Below is a ternary plot of the Planet Money survey data using [the ggtern package by Nicholas Hamilton](http://www.ggtern.com/), with survey questions colored according to the political party of the cardidate who proposed them:
+
+```{r ternary plot of Planet Money votes, fig.height=6}
+# introduce political party variable
+planetmoney <- planetmoney %>%
+  mutate(Party = ifelse(grepl("Clinton|Sanders", Candidates),
+                        ifelse(grepl("Trump|Rubio|Cruz", Candidates),
+                               "Both", "Democrat"), "Republican"))
+planetmoney_plot <- ggplot(data = planetmoney,
+                           aes(x = Good, z = Bad, y = Debatable,
+                               label = Brief, color = Party)) +
+  coord_tern() +
+  geom_mask() +
+  geom_point(size = 8, alpha = .25) +
+  scale_color_manual(values = c("purple", "blue", "red")) +
+  geom_text() +
+  theme_bw() + theme_showarrows() + theme_rotate(-90)
+print(planetmoney_plot)
+```
+
+Three things pop out to me from this plot: First, the panelists' support for ending the carried interest tax break is unique, with their responses to every other proposal being mixed at best. Second, neither political party has a discernible advantage in support from professional economists---although it's worth noting that the uniquely favored proposal to end the carried interest tax break was also unique in having support across party lines. Third, there is an "arc" to the space of response distributions, from the "good" consensus to the "bad" consensus: proposals that received mixed opinions tended to be seen by more panelists as debatable, while the panelists never reached a consensus of "debatable".
+
+The Planet Money survey data come with an important caveat: While Jess Jiang credits the economists in their article about the survey, they do not reveal how each economist voted. We therefore can't ask, of these data, whether a candidate's vote on one policy is predictive of their vote on another.
+
+## The Initiative on Global Markets panel survey
+
+```{r IGM data}
+data(igm)
+```
+
+The IGM panel survey includes over `r floor(diff(as.numeric(format(range(igm$date), "%Y"))))` years of data, covering `r length(unique(igm$topic))` surveys that asked a cumulative `r length(unique(igm$statement))` questions. Rather than displaying the entire dataset, here's a look at a subset of recent interest---the questions that concerned Greece:
+
+```{r table of Greece-relevant votes}
+igm_greece <- igm %>%
+  filter(grepl("Gree(k|ce)", topic) | grepl("Gree(k|ce)", statement))
+knitr::kable(igm_greece %>%
+               select(date, topic, question, statement) %>%
+               distinct)
+```
+
+Much of the story (or, at least, the media highlights) of the debt crisis can be recovered from the wording of these questions, including the 2010 and 2012 government bailouts and the 2015 referendum. What did the IGM panel think of these developments? Another Likert plot can illuminate:
+
+```{r Likert plot of Greece-relevant votes, fig.height=3.5}
+# construct a matrix of Likert responses
+igm_matrix <- reshape2::dcast(igm_greece,
+                              panelist ~ topic + question,
+                              value.var = "vote")
+rownames(igm_matrix) <- igm_matrix$panelist
+igm_matrix$panelist <- NULL
+# factorize the entries
+levs <- c("Strongly Disagree", "Disagree",
+          "Uncertain",
+          "Agree", "Strongly Agree")
+for (j in 1:ncol(igm_matrix))
+  igm_matrix[[j]] <- factor(igm_matrix[[j]], levels = levs)
+# Likertify
+igm_likert <- likert::likert(as.data.frame(igm_matrix))
+plot(igm_likert)
+```
+
+What's most interesting to me about the responses is that they're so spread out---only one question received a clear consensus answer, which i tend to define at 15%. This is in stark contrast to the highly-publicized macroeconomic consensuses on the recent [Scottish](http://voxeu.org/article/scottish-independence-survey-uk-based-macroeconomists) and [EU](http://voxeu.org/article/cfm-survey-june-2016-brexit-and-city) referenda in the UK. It might reflect general uncertainty among economists, whose "Agree" and "Disagree" (rarely qualified by "Strongly") may have dependended to some degree on the epistemic volatility of the period; or it might reflect a sharp divide between the panelists, such that those on either side voted consistently with each other.
+
+Anyway, it raises a dual question that couldn't be answered of the Planet Money panel: Which economists' views (on Greece) are similar, and which are different? We can measure the dimensionality of the range of opinion using principal components analysis (PCA). The idea is to assess how much of the variation between responses can be contained in one, two, or some other number of dimensions smaller than the total number of questions. Since classical PCA cannot handle missing data, we first subset the data matrix to the panelists who answered every question about Greece:
+
+```{r principal components plot of IGM panelists, fig.height=5}
+igm_matrix <- as.matrix(igm_matrix)
+# restrict to authors who answered each question
+igm_matrix <- igm_matrix[apply(igm_matrix, 1, function(x) all(!is.na(x))), ]
+# numericize
+vote_numbers <- c(`Strongly Disagree` = -1.5,
+                  Disagree = -1,
+                  Uncertain = 0,
+                  Agree = 1,
+                  `Strongly Agree` = 1.5)
+igm_matrix[1:length(igm_matrix)] <- vote_numbers[as.vector(igm_matrix)]
+class(igm_matrix) <- "numeric"
+igm_pca <- prcomp(igm_matrix)
+# percent variance explained by each PC
+igm_var <- (cumsum(igm_pca$sdev ^ 2) / sum(igm_pca$sdev ^ 2)) %>% as.table
+names(igm_var) <- colnames(igm_pca$rotation)
+knitr::kable(t(as.matrix(igm_var)), digits = 3)
+```
+
+The `vote_numbers` part assigns numerical values to the votes; purely by personal preference, i've assigned the not-"Strongly" votes absolute values of 1 and the "Strongly" votes values of 1.5. The table shows how much variation in the subsetted data can be explained by 1, 2, or any higher number of dimensions---the principal components (PCs). More than two thirds of the variance falls in the plane of the first two PCs, so its reasonable to use them to visualize the spread of responses. The following biplot, [enabled by Vince Q. Vu](http://www.vince.vu/software/), depicts this projection:
+
+```{r principal components biplot of IGM panelists, fig.height=7}
+# construct a PCA biplot
+stack_names <- gsub("^([^,]*), ([A-Z])[^,]*$", "\\2. \\1", rownames(igm_pca$x))
+ggbiplot::ggbiplot(igm_pca, obs.scale = 1, var.scale = 1,
+                   labels = stack_names, labels.size = 4, alpha = 1) +
+  theme_bw()
+```
+
+The most discriminating questions (in these two dimensions) have the longest arrows, in this case the four questions about European Debt. This isn't surprising, since they were some of the most contentious questions according to the Likert plots. Here, though, we're only looking at a small subset of the expert panel. Economists that appear in the same places on the plot had similar opinions. While they're generally spread out, two clusters of like-minded panelists are visible: Chevalier, Deaton, Maskin, and Holmstrom in one, and Goolsbee, Klenow, and Nordhous in the other.
+
+To interpret the spread of opinion, we can do the usual PCA thing and try to intuit the underlying meaning of the first and second principal components. The first PC (i.e. the horizontal direction) lines up closely with the latter two European Debt questions from 2012, which had to do with the necessity of the eurozone members experiencing crisis defaulting on their sovereign debt to the economic prospects of the eurozone as a whole (and which naturally appear also to be themselves strongly and positively correlated). The 2014 European Debt question, on the likelihood of default, was also a positive contributor to PC1, although it was not strongly correlated with those from 2012. I'll therefore interpret the spread of opinion along PC1 as regards the urgency of debt default by highly indebted eurozone countries.
+
+The second PC is aligned most closely with the 2014 European Debt question, then to the first part of the 2012 set and to the 2015 question of a default by Greece in rejection of the Troika's austerity demands. Though the 2014 question of the likelihood of default is the greatest contributor, there is a clear ideological contrast between the first of the 2012 set---that bailing out Greece, even to delay default, was preferable policy---and the 2015 question, even though they dealt with the effects on different populations (Greeks versus other eurozoners). So i'm interpreting PC2 as the differential on economists' favorability of the Troika's austerity--bailout packages. This is consistent with the (downward, i.e. unfavorable) contribution of the 2015 question on the Greek referendum. (It turns out that Prof. [Anil Kashyap](http://www.igmchicago.org/igm-economic-experts-panel/participant-bio-2?id=18) had an outsized contribution to this picture; when their answers are removed and the picture redrawn, the remaining panelists' answers to the 2014 European Debt and 2015 Greece Referendum questions very closely align with each other and against the 2015 Greece question, forming PC2, with B and C of the 2012 European Debt question more clearly opposed to A, forming PC1.)
+
+To conclude, it's worth taking a bird's-eye look at the entire dataset. We can see the distribution of responses, in a ternary plot like the one above:
+
+```{r ternary plot of IGM answers, fig.height=6}
+# trichotimize votes
+igm$vote_tern <- as.character(igm$vote)
+igm$vote_tern[grep("Agree", igm$vote_tern)] <- "Agree"
+igm$vote_tern[grep("Disagree", igm$vote_tern)] <- "Disagree"
+# tally the votes for each question
+panel <- reshape2::dcast(igm,
+                         topic + question + statement ~ vote_tern,
+                         value.var = "vote_tern",
+                         fun.aggregate = length)
+# construct a ternary plot
+igm_plot <- ggplot(data = panel,
+                   aes(x = Agree, z = Disagree, y = Uncertain)) +
+  coord_tern(expand = TRUE) +
+  geom_mask() +
+  geom_point(alpha = .25, aes(size = Agree + Disagree + Uncertain)) +
+  scale_size_area(name = "Voting panelists") +
+  theme_bw() + theme_showarrows() + theme_rotate(-90)
+print(igm_plot)
+```
+
+The plot includes a point for every survey question, even though the questions received different response rates; the points are scaled in size according to the number of panelists who answered them. Note that this plot makes no distinction between (dis)agreement and *strong* (dis)agreement and takes no notice of each panelist's reported level of confidence. (An older interactive visualization, which should still be available at [this app](https://corybrunson.shinyapps.io/igm-app/), incorporates these variables as tuning parameters.) The overall shape of the distribution corroborates the observations made about the Planet Money survey (note the arc from one consensus corner to the other). Also, the relative density of questionso in the "Agree" corner reveals that, when a consensus is found, IGM tends to have posed question statements in agreeable, rather than disagreeable, terms.
+
+Anyway, there's a great deal more that could be gleaned from these data. I'd be interested to know what you uncover. : )

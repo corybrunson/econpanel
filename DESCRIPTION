@@ -2,7 +2,7 @@ Package: econpanel
 Type: Package
 Title: Economic experts panel survey data
 Version: 0.1
-Date: 2016-04-26
+Date: 2017-12-26
 Authors@R: person('Jason Cory', 'Brunson', email = 'jabrunso@vt.edu',
     role = c('aut', 'cre'))
 Maintainer: Jason Cory Brunson <jabrunso@vt.edu>
@@ -16,10 +16,12 @@ Depends:
     R (>= 3.0.1)
 Imports:
 Suggests:
+    here,
     rvest,
     devtools,
     reshape2,
     dplyr,
+    lubridate,
     ggtern,
     likert,
     ggbiplot,

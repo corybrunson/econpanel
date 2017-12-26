@@ -1,12 +1,13 @@
 ## Files for git to ignore
 
-# R history
+# R stuff
 .Rhistory
+
+# Mac stuff
 .DS_Store
 */.DS_Store
 
-# produced vignettes
-vignettes/*.html
-vignettes/*.pdf
-
+# survey pages
+data-raw/*.html
+data-raw/surveys
 

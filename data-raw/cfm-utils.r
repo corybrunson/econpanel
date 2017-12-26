@@ -1,11 +1,3 @@
-rm(list = ls())
-if (grepl("/data-raw$", getwd())) setwd("..")
-stopifnot(grepl("econpanel$", getwd()))
-
-library(rvest)
-
-# Functions
-
 # Expand a survey page ID to its URL
 survey_url <- function(id) {
   paste0("http://cfmsurvey.org/surveys/", id)
@@ -191,23 +183,3 @@ get_data <- function(surveys, ...) {
   data <- data.frame()
   update_data(data, surveys, prompt = FALSE, ...)
 }
-
-# Script
-
-if (file.exists("data/cfm.rda")) load("data/cfm.rda")
-
-# get surveys
-surveys <- get_surveys()
-
-if (!exists("cfm")) {
-  # scrape fresh
-  cfm <- get_data(surveys)
-} else {
-  # scrape for updates
-  cfm <- update_data(cfm, surveys)
-}
-
-# sort by date > question > panelist
-cfm <- dplyr::arrange(cfm, date, question, participant)
-
-devtools::use_data(cfm, overwrite = TRUE)

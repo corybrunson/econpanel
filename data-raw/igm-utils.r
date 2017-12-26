@@ -1,47 +1,73 @@
-rm(list = ls())
-if (grepl("/data-raw$", getwd())) setwd("..")
-stopifnot(grepl("econpanel$", getwd()))
-
-library(rvest)
-
-# Functions
-
 # Expand a survey page ID to its URL
-survey_url <- function(id) {
+survey_id_url <- function(id) {
   paste0("http://www.igmchicago.org/surveys/", id)
 }
 
 # Restrict a survey page URL to its ID
-survey_id <- function(url) {
+survey_url_id <- function(url) {
   gsub("^http://www.igmchicago.org/surveys/", "", url)
 }
 
-# Scrape the home page for survey page URLs
-get_surveys <- function(panel = "USA") {
+# Expand a survey page ID to its file name
+survey_id_file <- function(id) {
+  here("data-raw/surveys", paste0(id, ".html"))
+}
+
+# task prompt
+prompt_task <- function(...) {
+  message(...)
+  invisible(readline("When done, hit 'Return'/'Enter'."))
+}
+
+# prompt if file is missing or old
+prompt_file <- function(file, days = 1) {
+  if (!file.exists(file)) {
+    prompt_task(
+      "The survey file '", file, "' does not exist.\n",
+      "Refresh it from the website."
+    )
+  }
+  if (Sys.time() > file.mtime(file) + lubridate::days(days)) {
+    prompt_task(
+      "The survey file '", file, "' is over ", days, " day(s) old.\n",
+      "If necessary, refresh it from the website."
+    )
+  }
+}
+
+# Scrape downloaded JS home page
+read_surveys <- function(panel = "USA") {
   
-  # get corresponding URL
+  # get corresponding HTML file name
   panel <- match.arg(tolower(panel), c("usa", "europe"))
-  url <- c(
-    usa = "http://www.igmchicago.org/igm-economic-experts-panel",
-    europe = "http://www.igmchicago.org/european-economic-experts-panel"
-  )[panel] %>% unname()
+  file <- here("data-raw", switch(
+    panel,
+    usa = "igm-economic-experts-panel.html",
+    europe = "european-economic-experts-panel.html"
+  ))
+  prompt_file(file)
   
-  # get surveys from URL
-  page <- read_html(url)
+  # read surveys from saved HTML file
+  doc <- XML::htmlParse(file)
+  topics <- XML::xpathSApply(doc, "//h2/a", XML::xmlValue)
+  links <- unname(XML::xpathSApply(doc, "//h2/a/@href"))
+  dates <- XML::xpathSApply(doc, "//h6", XML::xmlValue)
+  XML::free(doc)
   
-  # SelectorGadget
-  elts <- html_nodes(page, "h2 a")
-  dates <- html_nodes(page, "h6")
+  # keep only standard surveys (exclude special surveys)
+  keep <- grep("/surveys/", links)
   
   data.frame(
-    topic = elts %>% html_text(),
-    id = elts %>% html_attr("href") %>% survey_id(),
-    date = dates %>% html_text() %>%
+    topic = topics[keep],
+    id = links[keep] %>% survey_url_id(),
+    date = dates[keep] %>%
       gsub(pattern = "^[A-Za-z]+, ([A-Z].*[0-9]) [0-9]{1,2}\\:.*$",
            replacement = "\\1") %>%
       gsub(pattern = " ([0-9]+)[a-z]{2},", replacement = " \\1,") %>%
-      as.Date(format = "%B %d, %Y")
+      as.Date(format = "%B %d, %Y"),
+    stringsAsFactors = FALSE
   )
+  
 }
 
 # Combine ".surveyQuestion" and "p" info into vector of question texts
@@ -83,15 +109,18 @@ name_alph <- function(name) {
 }
 
 # Collapse NA vote options
-pool.na <- function(vote) {
+pool_na <- function(vote) {
   vote[!grepl('[Aa]gree|Uncertain', vote)] <- NA
   vote
 }
 
 # Scrape a survey page for panelist responses, separating multiple questions
-get_responses <- function(url) {
+read_responses <- function(id) {
   
-  page <- read_html(url)
+  file <- survey_id_file(id)
+  prompt_file(file)
+  
+  page <- read_html(file)
   
   # Count the number of questions
   ques <- html_nodes(page, ".surveyQuestion")
@@ -126,7 +155,7 @@ get_responses <- function(url) {
       html_nodes(paste0("#sort", r, " .gridComment")) %>%
       html_text() %>%
       gsub(pattern = "(\\n|\\t)", replacement = "")
-
+    
     # Shift cells back when late joiners are added
     late <- grep("^Joined", edit)
     if(length(late) > 0) {
@@ -147,11 +176,12 @@ get_responses <- function(url) {
     res <- data.frame(
       panelist = panelist,
       uni = uni,
-      vote = pool.na(vote),
+      vote = pool_na(vote),
       confidence = conf,
       comment = comm,
       question = if(length(ques) > 1) LETTERS[r + 1] else "",
-      statement = ques_text[r + 1]
+      statement = ques_text[r + 1],
+      stringsAsFactors = FALSE
     )
     
     # Remove rows with missing panelists
@@ -169,37 +199,21 @@ get_responses <- function(url) {
   dplyr::bind_rows(dats)
 }
 
-# Scrape the website for new surveys and append to existing dataset
-update_data <- function(data, surveys, prompt = TRUE, chill = TRUE) {
+update_data <- function(data, surveys) {
   
-  if (prompt) {
-    if (Sys.Date() < max(as.Date(surveys$date, format = "%B %d, %Y")) + 14) {
-      res <-
-        readline("Last question is < 1 fortnight old; update anyway? (y/n)")
-      if (grepl("^[Yy]", res[1])) {
-        res <- TRUE
-      } else {
-        if (!grepl("^[Nn]", res[1]))
-          warning("Not a yes/no response; assuming no")
-        res <- FALSE
-      }
-    } else res <- TRUE
-  }
+  new_rows <- which(!(surveys$id %in% data$id))
   
-  # Scrape, bind, and augment data for each survey
-  for (i in 1:nrow(surveys)) {
-    if (surveys$id[i] %in% data$id) next
-    url <- survey_url(id = surveys$id[i])
-    new_data <- get_responses(url)
-    new_data <- cbind(id = surveys$id[i],
-                      date = surveys$date[i],
-                      topic = surveys$topic[i],
-                      new_data)
+  peb <- dplyr::progress_estimated(length(new_rows), 2)
+  for (i in new_rows) {
+    peb$tick()$print()
+    new_data <- data.frame(
+      id = surveys$id[i],
+      date = surveys$date[i],
+      topic = surveys$topic[i],
+      read_responses(surveys$id[i]),
+      stringsAsFactors = FALSE
+    )
     data <- dplyr::bind_rows(data, new_data)
-    if (chill) {
-      Sys.sleep(5)
-      print(paste0("Extracted data for '", surveys$topic[i], "'..."))
-    }
   }
   
   # Factorize categorical variables
@@ -209,49 +223,3 @@ update_data <- function(data, surveys, prompt = TRUE, chill = TRUE) {
   
   data
 }
-
-# Scrape the website for all available surveys (fresh)
-get_data <- function(surveys, ...) {
-  data <- data.frame()
-  update_data(data, surveys, prompt = FALSE, ...)
-}
-
-# Script for USA panel
-
-if (file.exists("data/igm.rda")) load("data/igm.rda")
-
-# get surveys
-surveys <- get_surveys()
-
-if (!exists("igm")) {
-  # scrape fresh
-  igm <- get_data(surveys)
-} else {
-  # scrape for updates
-  igm <- update_data(igm, surveys)
-}
-
-# sort by date > question > panelist
-igm <- dplyr::arrange(igm, date, question, panelist)
-
-devtools::use_data(igm, overwrite = TRUE)
-
-# Script for Europe panel
-
-if (file.exists("data/eigm.rda")) load("data/eigm.rda")
-
-# get surveys
-surveys <- get_surveys(panel = "Europe")
-
-if (!exists("eigm")) {
-  # scrape fresh
-  eigm <- get_data(surveys)
-} else {
-  # scrape for updates
-  eigm <- update_data(eigm, surveys)
-}
-
-# sort by date > question > panelist
-eigm <- dplyr::arrange(eigm, date, question, panelist)
-
-devtools::use_data(eigm, overwrite = TRUE)
